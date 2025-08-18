@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Agenda de Causas</title>
+  <style>
+    :root{
+      --bg:#f5f7fb; --card:#fff; --primary:#1f3a93; --accent:#3498db;
+      --danger:#e74c3c; --success:#27ae60; --warning:#f39c12; --muted:#7f8c8d;
+      --violet:#8e44ad;
+      --radius:14px; --shadow:0 4px 15px rgba(0,0,0,.08);
+    }
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:'Segoe UI',sans-serif;background:var(--bg);color:#2c3e50;padding:20px}
+    h1{text-align:center;color:var(--primary);margin-bottom:20px}
+
+    .agenda-container{display:grid;grid-template-columns:1fr 420px;gap:20px;align-items:start}
+
+    .calendar{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:20px}
+    .calendar-header{display:flex;gap:8px;flex-wrap:wrap;justify-content:space-between;align-items:center;margin-bottom:16px}
+    .left-actions, .right-actions{display:flex;gap:8px;align-items:center}
+    .calendar-header h2{color:var(--accent);font-size:1.3rem}
+    .calendar-header button, .calendar-header input[type="number"]{border:none;background:var(--accent);color:#fff;padding:8px 14px;border-radius:8px;cursor:pointer;font-size:1rem}
+    .calendar-header button.secondary{background:#95a5a6}
+    .calendar-header button:hover{opacity:.9}
+    .calendar-header input[type="number"]{width:110px;text-align:center;appearance:textfield}
+    .calendar-header input[type="number"]::-webkit-outer-spin-button,
+    .calendar-header input[type="number"]::-webkit-inner-spin-button{ -webkit-appearance: none; margin: 0; }
+
+    .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:8px}
+    .wd{padding:10px;background:var(--primary);color:#fff;border-radius:8px;text-align:center;font-weight:600}
+    .day{position:relative;background:#fff;border-radius:10px;padding:8px;transition:.2s;cursor:pointer;overflow:hidden;display:flex;flex-direction:column;gap:4px;align-items:flex-start;justify-content:flex-start;box-shadow:inset 0 0 0 1px rgba(0,0,0,.03)}
+    .day{aspect-ratio:1/1; min-height:82px}
+    @media (max-width:900px){ .agenda-container{grid-template-columns:1fr} .day{aspect-ratio:6/5} }
+    .day:hover{background:#eef6ff}
+    .day .num{font-weight:700}
+    .today{background:var(--accent)!important;color:#fff}
+    .weekend{background:#ececec}
+    .holiday{background:#ffecec;border:2px solid var(--danger)}
+    .detail{font-size:.7rem;margin-top:2px;}
+    .badge{display:inline-block;padding:2px 6px;border-radius:6px;font-size:.7rem;color:#fff;margin-top:2px}
+    .audiencia{background:var(--accent)}
+    .vencimiento{background:var(--danger)}
+    .gesell{background:var(--warning)}
+    .recurso{background:var(--violet)}
+
+    .events{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:20px;max-height:80vh;overflow:auto}
+    .events h2{color:var(--accent);margin-bottom:12px;font-size:1.2rem}
+    .event{display:flex;gap:8px;align-items:flex-start;background:#f9f9ff;border-left:4px solid var(--accent);padding:10px;border-radius:8px;margin:10px 0}
+    .event .what{font-weight:600}
+    .summary{margin-top:12px;font-weight:bold;color:var(--primary);white-space:pre-line}
+    .pill{display:inline-block;padding:4px 10px;border-radius:999px;font-size:.8rem;background:#eef2ff;margin-left:6px}
+    .btn-print{margin-top:12px;background:var(--success);color:#fff;padding:10px 14px;border:none;border-radius:8px;cursor:pointer;font-size:.9rem}
+    .btn-print:hover{opacity:.9}
+  </style>
+</head>
+<body>
+  <h1>📅 Agenda de Audiencias y Vencimientos</h1>
+  <div class="agenda-container">
+    <div class="calendar">
+      <div class="calendar-header">
+        <div class="left-actions">
+          <button id="prevYear" class="secondary">« Año</button>
+          <button id="prevMonth">◀ Mes</button>
+          <button id="btnToday" class="secondary">Hoy</button>
+        </div>
+        <h2 id="monthLabel"></h2>
+        <div class="right-actions">
+          <input id="yearInput" type="number" step="1" />
+          <button id="nextMonth">Mes ▶</button>
+          <button id="nextYear" class="secondary">Año »</button>
+        </div>
+      </div>
+      <div class="cal-grid" id="calGrid"></div>
+      <div id="monthSummary" class="summary"></div>
+    </div>
+    <div class="events">
+      <h2>Eventos <span id="countEv" class="pill">0</span></h2>
+      <div id="eventList"></div>
+      <button id="btnPrintAgenda" class="btn-print">🖨️ Imprimir Agenda</button>
+    </div>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+    import { getFirestore, collection, onSnapshot, query, orderBy } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyBt6X0u0BpiNPcV2SNPrN-spCmjl2AhZaA",
+      authDomain: "causas-defensoria.firebaseapp.com",
+      projectId: "causas-defensoria",
+      storageBucket: "causas-defensoria.firebasestorage.app",
+      messagingSenderId: "186064671470",
+      appId: "1:186064671470:web:b58bae5eadbe6e469f19ff"
+    };
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    const eventList = document.getElementById("eventList");
+    const countEv = document.getElementById("countEv");
+    const monthLabel = document.getElementById("monthLabel");
+    const calGrid = document.getElementById("calGrid");
+    const monthSummary = document.getElementById("monthSummary");
+    const yearInput = document.getElementById("yearInput");
+
+    let eventos = [];
+    let currentDate = new Date();
+
+    const feriados = {
+      "01-01":"Año Nuevo",
+      "24-03":"Día de la Memoria",
+      "02-04":"Malvinas y Caídos",
+      "01-05":"Día del Trabajador",
+      "25-05":"Día de la Patria",
+      "20-06":"Paso a la Inmortalidad de Belgrano",
+      "09-07":"Independencia",
+      "17-08":"San Martín",
+      "12-10":"Diversidad Cultural",
+      "20-11":"Soberanía Nacional",
+      "08-12":"Inmaculada Concepción",
+      "25-12":"Navidad"
+    };
+
+    function renderEvents(arr){
+      eventList.innerHTML="";
+      if(!arr.length){ countEv.textContent = 0; eventList.innerHTML = "<div>No hay eventos</div>"; return; }
+
+      // Contar por tipo
+      const counts = arr.reduce((acc,e)=>{acc[e.tipo]=(acc[e.tipo]||0)+1; return acc;},{});
+      countEv.textContent = arr.length;
+
+      for(const [tipo,cant] of Object.entries(counts)){
+        let cls="";
+        if(tipo==="Audiencia") cls="audiencia";
+        if(tipo==="Vencimiento") cls="vencimiento";
+        if(tipo==="Cámara Gesell") cls="gesell";
+        if(tipo==="Vencimiento Recurso") cls="recurso";
+
+        eventList.insertAdjacentHTML("beforeend",`<div class="event"><div class="what badge ${cls}">${tipo}s (${cant})</div></div>`);
+      }
+    }
+
+    function renderCalendar(){
+      const year = currentDate.getFullYear();
+      const month = currentDate.getMonth();
+      monthLabel.textContent = currentDate.toLocaleString("es-ES", {month:"long", year:"numeric"});
+      yearInput.value = year;
+
+      const days = ["Dom","Lun","Mar","Mié","Jue","Vie","Sáb"];
+      let html = days.map(d=>`<div class="wd">${d}</div>`).join("");
+
+      const firstDay = new Date(year, month, 1);
+      const lastDay = new Date(year, month+1, 0);
+      for(let i=0;i<firstDay.getDay();i++) html += `<div class="day empty" aria-hidden="true"></div>`;
+
+      for(let d=1;d<=lastDay.getDate();d++){
+        const date = new Date(year, month, d);
+        const isToday = date.toDateString()===new Date().toDateString();
+        const dayEvents = eventos.filter(e=> e.f.toDateString()===date.toDateString());
+
+        const key = ("0"+d).slice(-2)+"-"+("0"+(month+1)).slice(-2);
+        const feriado = feriados[key] || null;
+
+        const classes = ["day"];
+        if(isToday) classes.push("today");
+        if(date.getDay()===0 || date.getDay()===6) classes.push("weekend");
+        if(feriado) classes.push("holiday");
+
+        const counts = dayEvents.reduce((acc,e)=>{acc[e.tipo]=(acc[e.tipo]||0)+1; return acc;},{});
+        let details = Object.entries(counts).map(([tipo,cant])=>{
+          let cls="";
+          if(tipo==="Audiencia") cls="audiencia";
+          if(tipo==="Vencimiento") cls="vencimiento";
+          if(tipo==="Cámara Gesell") cls="gesell";
+          if(tipo==="Vencimiento Recurso") cls="recurso";
+          return `<div class='badge ${cls}'>${tipo}s (${cant})</div>`;
+        }).join("");
+
+        html += `
+          <div class="${classes.join(' ')}" data-date="${date.toISOString()}">
+            <div class="num">${d}</div>
+            ${feriado?`<div>${feriado}</div>`:""}
+            ${details}
+          </div>`;
+      }
+      calGrid.innerHTML = html;
+
+      const eventosMes = eventos.filter(e=> e.f.getMonth()===month && e.f.getFullYear()===year);
+      const totalMes = eventosMes.length;
+      const porTipo = eventosMes.reduce((acc,e)=>{ acc[e.tipo]=(acc[e.tipo]||0)+1; return acc; },{});
+      let resumen = `Total de eventos en ${currentDate.toLocaleString("es-ES", {month:"long"})}: ${totalMes}`;
+      for(const [tipo,cant] of Object.entries(porTipo)) resumen += `\n- ${tipo}: ${cant}`;
+      monthSummary.textContent = resumen;
+
+      calGrid.querySelectorAll(".day[data-date]").forEach(cell=>{
+        cell.onclick=()=>{
+          const date = new Date(cell.dataset.date);
+          const evs = eventos.filter(e=> e.f.toDateString()===date.toDateString());
+          renderEvents(evs);
+        };
+      });
+    }
+
+    document.getElementById("prevMonth").onclick=()=>{ currentDate.setMonth(currentDate.getMonth()-1); renderCalendar(); };
+    document.getElementById("nextMonth").onclick=()=>{ currentDate.setMonth(currentDate.getMonth()+1); renderCalendar(); };
+    document.getElementById("prevYear").onclick = ()=>{ currentDate.setFullYear(currentDate.getFullYear()-1); renderCalendar(); };
+    document.getElementById("nextYear").onclick = ()=>{ currentDate.setFullYear(currentDate.getFullYear()+1); renderCalendar(); };
+    document.getElementById("btnToday").onclick = ()=>{ currentDate = new Date(); renderCalendar(); selectToday(); };
+    yearInput.onchange = ()=>{ const y = parseInt(yearInput.value,10); if(!isNaN(y)){ currentDate.setFullYear(y); renderCalendar(); } };
+
+    function selectToday(){
+      const todayIso = new Date().toDateString();
+      const cell = Array.from(document.querySelectorAll('.day[data-date]')).find(c=> new Date(c.dataset.date).toDateString()===todayIso);
+      if(cell){ cell.click(); cell.scrollIntoView({behavior:'smooth',block:'nearest',inline:'nearest'}); }
+    }
+
+    const q = query(collection(db, "causas"), orderBy("fechaRegistro","desc"));
+    onSnapshot(q, snap => {
+      eventos = [];
+      snap.forEach(doc=>{
+        const d = doc.data();
+        const id = d.numCausa || doc.id;
+        const pushIf = (fecha,tipo)=>{
+          if(!fecha) return;
+          const f = fecha.seconds? new Date(fecha.seconds*1000): new Date(fecha);
+          if(!isNaN(f)) eventos.push({f,label:id,tipo});
+        };
+        pushIf(d.audiencias,"Audiencia");
+        pushIf(d.audienciaGesell,"Cámara Gesell");
+        pushIf(d.vencimiento,"Vencimiento");
+        pushIf(d.vencimientoRecursos,"Vencimiento Recurso");
+      });
+      renderCalendar();
+      renderEvents(eventos.filter(e=> e.f.getMonth()===currentDate.getMonth() && e.f.getFullYear()===currentDate.getFullYear()));
+      selectToday();
+    });
+
+    document.getElementById("btnPrintAgenda").onclick=()=>{
+      const resumen = monthSummary.textContent;
+      const html = `<h2>Agenda</h2><pre>${resumen}</pre>`+eventList.outerHTML;
+      const w=window.open("","","width=900,height=700");
+      w.document.write(`<html><body>${html}</body></html>`);
+      w.document.close();w.focus();w.print();
+    };
+  </script>
+</body>
+</html>
+
