@@ -58,7 +58,7 @@
     /* MODAL */
     .modal{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;z-index:1000}
     .modal.hidden{display:none}
-    .modal-content{background:#fff;padding:20px;border-radius:14px;box-shadow:0 4px 20px rgba(0,0,0,.3);width:400px;max-width:90%}
+    .modal-content{background:#fff;padding:20px;border-radius:14px;box-shadow:0 4px 20px rgba(0,0,0,.3);width:450px;max-width:90%;max-height:80vh;overflow-y:auto}
     .modal-content h3{margin-bottom:10px;color:var(--accent)}
     .close{float:right;font-size:20px;cursor:pointer}
     .btn-print-modal{margin-top:12px;background:var(--accent);color:#fff;padding:8px 12px;border:none;border-radius:8px;cursor:pointer;font-size:.9rem}
@@ -66,7 +66,6 @@
   </style>
 </head>
 <body>
-  <h1>📅 Agenda de Audiencias y Vencimientos</h1>
   <div class="agenda-container">
     <div class="calendar">
       <div class="calendar-header">
