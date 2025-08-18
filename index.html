@@ -47,13 +47,22 @@
 
     .events{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:20px;max-height:80vh;overflow:auto}
     .events h2{color:var(--accent);margin-bottom:12px;font-size:1.2rem}
-    .event{display:flex;gap:8px;align-items:flex-start;background:#f9f9ff;border-left:4px solid var(--accent);padding:10px;border-radius:8px;margin:10px 0}
-    .event .when{min-width:120px;font-weight:bold}
+    .event{display:flex;flex-direction:column;gap:4px;align-items:flex-start;background:#f9f9ff;border-left:4px solid var(--accent);padding:10px;border-radius:8px;margin:10px 0}
+    .event .when{font-weight:bold}
     .event .what{font-weight:600}
     .summary{margin-top:12px;font-weight:bold;color:var(--primary);white-space:pre-line}
     .pill{display:inline-block;padding:4px 10px;border-radius:999px;font-size:.8rem;background:#eef2ff;margin-left:6px}
     .btn-print{margin-top:12px;background:var(--success);color:#fff;padding:10px 14px;border:none;border-radius:8px;cursor:pointer;font-size:.9rem}
     .btn-print:hover{opacity:.9}
+
+    /* MODAL */
+    .modal{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;z-index:1000}
+    .modal.hidden{display:none}
+    .modal-content{background:#fff;padding:20px;border-radius:14px;box-shadow:0 4px 20px rgba(0,0,0,.3);width:400px;max-width:90%}
+    .modal-content h3{margin-bottom:10px;color:var(--accent)}
+    .close{float:right;font-size:20px;cursor:pointer}
+    .btn-print-modal{margin-top:12px;background:var(--accent);color:#fff;padding:8px 12px;border:none;border-radius:8px;cursor:pointer;font-size:.9rem}
+    .btn-print-modal:hover{opacity:.9}
   </style>
 </head>
 <body>
@@ -91,6 +100,16 @@
     </div>
   </div>
 
+  <!-- Modal de Causa -->
+  <div id="modalCausa" class="modal hidden">
+    <div class="modal-content">
+      <span id="closeModal" class="close">&times;</span>
+      <h3>Detalle de la Causa</h3>
+      <div id="modalBody"></div>
+      <button id="btnPrintCausa" class="btn-print-modal">🖨️ Imprimir Causa</button>
+    </div>
+  </div>
+
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
     import { getFirestore, collection, onSnapshot, query, orderBy } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
@@ -116,20 +135,13 @@
 
     let eventos = [];
     let currentDate = new Date();
+    let causasMap = {};
+    let currentCausaId = null;
 
     const feriados = {
-      "01-01":"Año Nuevo",
-      "24-03":"Día de la Memoria",
-      "02-04":"Malvinas y Caídos",
-      "01-05":"Día del Trabajador",
-      "25-05":"Día de la Patria",
-      "20-06":"Paso a la Inmortalidad de Belgrano",
-      "09-07":"Independencia",
-      "17-08":"San Martín",
-      "12-10":"Diversidad Cultural",
-      "20-11":"Soberanía Nacional",
-      "08-12":"Inmaculada Concepción",
-      "25-12":"Navidad"
+      "01-01":"Año Nuevo","24-03":"Día de la Memoria","02-04":"Malvinas y Caídos","01-05":"Día del Trabajador",
+      "25-05":"Día de la Patria","20-06":"Paso a la Inmortalidad de Belgrano","09-07":"Independencia","17-08":"San Martín",
+      "12-10":"Diversidad Cultural","20-11":"Soberanía Nacional","08-12":"Inmaculada Concepción","25-12":"Navidad"
     };
 
     function renderEvents(arr){
@@ -147,7 +159,36 @@
         if(e.tipo==="Vencimiento Recurso") cls="recurso";
 
         const fechaStr = e.f.toLocaleDateString("es-ES", {day:"2-digit", month:"2-digit", year:"numeric", hour:"2-digit", minute:"2-digit"});
-        eventList.insertAdjacentHTML("beforeend",`<div class="event"><div class="when">${fechaStr}</div><div class="what badge ${cls}">${e.tipo}</div></div>`);
+        eventList.insertAdjacentHTML("beforeend",`
+          <div class="event">
+            <div class="when">${fechaStr}</div>
+            <div class="what badge ${cls}">${e.tipo}</div>
+            <div class="causa">
+              <a href="#" class="causa-link" data-id="${e.label}">Causa Nº ${e.label}</a>
+            </div>
+          </div>`);
+      });
+
+      // manejar clicks en los números de causa
+      document.querySelectorAll(".causa-link").forEach(link=>{
+        link.onclick=(ev)=>{
+          ev.preventDefault();
+          const id = link.dataset.id;
+          const causa = causasMap[id];
+          if(causa){
+            currentCausaId = id;
+            let body = `<p><b>numCausa:</b> ${id}</p>`;
+            for(const [key,value] of Object.entries(causa)){
+              let val = value;
+              if(value?.seconds){ // fecha tipo timestamp de Firestore
+                val = new Date(value.seconds*1000).toLocaleDateString("es-ES");
+              }
+              body += `<p><b>${key}:</b> ${val ?? "-"}</p>`;
+            }
+            document.getElementById("modalBody").innerHTML = body;
+            document.getElementById("modalCausa").classList.remove("hidden");
+          }
+        };
       });
     }
 
@@ -244,9 +285,11 @@
     const q = query(collection(db, "causas"), orderBy("fechaRegistro","desc"));
     onSnapshot(q, snap => {
       eventos = [];
+      causasMap = {};
       snap.forEach(doc=>{
         const d = doc.data();
         const id = d.numCausa || doc.id;
+        causasMap[id] = d;  // guardamos la causa
         const pushIf = (fecha,tipo)=>{
           if(!fecha) return;
           const f = fecha.seconds? new Date(fecha.seconds*1000): new Date(fecha);
@@ -267,7 +310,25 @@
       w.document.write(`<html><body>${html}</body></html>`);
       w.document.close();w.focus();w.print();
     };
+
+    // cerrar modal
+    document.getElementById("closeModal").onclick=()=>{
+      document.getElementById("modalCausa").classList.add("hidden");
+    };
+    window.onclick=(e)=>{
+      if(e.target.id==="modalCausa"){
+        document.getElementById("modalCausa").classList.add("hidden");
+      }
+    };
+
+    // imprimir desde el modal
+    document.getElementById("btnPrintCausa").onclick=()=>{
+      if(!currentCausaId) return;
+      const html = `<h2>Causa Nº ${currentCausaId}</h2>` + document.getElementById("modalBody").innerHTML;
+      const w=window.open("","","width=800,height=600");
+      w.document.write(`<html><body>${html}</body></html>`);
+      w.document.close();w.focus();w.print();
+    };
   </script>
 </body>
 </html>
-
