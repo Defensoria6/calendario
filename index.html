@@ -141,7 +141,7 @@
     const feriados = {
       "01-01":"Año Nuevo","24-03":"Día de la Memoria","02-04":"Malvinas y Caídos","01-05":"Día del Trabajador",
       "25-05":"Día de la Patria","20-06":"Paso a la Inmortalidad de Belgrano","09-07":"Independencia","17-08":"San Martín",
-      "10-10":"Feriado","12-10":"Diversidad Cultural","20-11":"Soberanía Nacional","08-12":"Inmaculada Concepción","25-12":"Navidad"
+      "10-10":"Feriado","12-10":"Diversidad Cultural","17-11":"Feriado- Día del Empleado Judicial", "20-11":"Soberanía Nacional","08-12":"Inmaculada Concepción","25-12":"Navidad"
     };
 
     function renderEvents(arr){
@@ -254,10 +254,6 @@
         );
 
         // Agregar banderas según el tipo de evento
-        const banderaHTML = tieneAudiencias 
-          ? `<img src="https://github.com/Defensoria6/calendario/blob/1e94ccf64fa389def75c8d834ac942baa8914f43/amarillo.png?raw=true" class="bandera" alt="Audiencia">`
-          : "";
-
         const banderaRojaHTML = tieneEventosEspeciales 
           ? `<img src="https://github.com/Defensoria6/calendario/blob/1e94ccf64fa389def75c8d834ac942baa8914f43/rojo.png?raw=true" class="bandera-roja" alt="Evento importante">`
           : "";
