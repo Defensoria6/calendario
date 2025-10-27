@@ -44,8 +44,6 @@
     .vencimiento{background:var(--danger)}
     .gesell{background:var(--warning)}
     .recurso{background:var(--violet)}
-    .bandera{position:absolute;top:2px;right:2px;width:16px;height:16px;}
-    .bandera-roja{position:absolute;top:2px;left:2px;width:16px;height:16px;}
 
     .events{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:20px;max-height:80vh;overflow:auto}
     .events h2{color:var(--accent);margin-bottom:12px;font-size:1.2rem}
@@ -245,21 +243,8 @@
           return `<div class='badge ${cls}'>${tipo}s (${cant})</div>`;
         }).join("");
 
-        // Verificar tipos de eventos para mostrar banderas
-        const tieneEventosEspeciales = dayEvents.some(e => 
-          e.tipo === "Cámara Gesell" || 
-          e.tipo === "Vencimiento" || 
-          e.tipo === "Vencimiento Recurso"
-        );
-
-        // Agregar bandera roja para eventos especiales (sin bandera para audiencia)
-        const banderaRojaHTML = tieneEventosEspeciales 
-          ? `<img src="https://github.com/Defensoria6/calendario/blob/1e94ccf64fa389def75c8d834ac942baa8914f43/rojo.png?raw=true" class="bandera-roja" alt="Evento importante">`
-          : "";
-
         html += `
           <div class="${classes.join(' ')}" data-date="${date.toISOString()}">
-            ${banderaRojaHTML}
             <div class="num">${d}</div>
             ${feriado?`<div>${feriado}</div>`:""}
             ${details}
