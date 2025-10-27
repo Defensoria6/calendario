@@ -246,21 +246,19 @@
         }).join("");
 
         // Verificar tipos de eventos para mostrar banderas
-        const tieneAudiencias = dayEvents.some(e => e.tipo === "Audiencia");
         const tieneEventosEspeciales = dayEvents.some(e => 
           e.tipo === "Cámara Gesell" || 
           e.tipo === "Vencimiento" || 
           e.tipo === "Vencimiento Recurso"
         );
 
-        // Agregar banderas según el tipo de evento
+        // Agregar bandera roja para eventos especiales (sin bandera para audiencia)
         const banderaRojaHTML = tieneEventosEspeciales 
           ? `<img src="https://github.com/Defensoria6/calendario/blob/1e94ccf64fa389def75c8d834ac942baa8914f43/rojo.png?raw=true" class="bandera-roja" alt="Evento importante">`
           : "";
 
         html += `
           <div class="${classes.join(' ')}" data-date="${date.toISOString()}">
-            ${banderaHTML}
             ${banderaRojaHTML}
             <div class="num">${d}</div>
             ${feriado?`<div>${feriado}</div>`:""}
